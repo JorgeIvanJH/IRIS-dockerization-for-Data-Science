@@ -155,7 +155,7 @@ ClassMethod RunAllInferences(lowerAge As %Integer = 0, numTimesAv As %Integer = 
 {
     ; Run all three inference methods and display their times.
     ; e.g:
-    ;    do ##class(MockPackage.MockInference).RunAllInferences(30)
+    ;    do ##class(MockPackage.MockInference).RunAllInferences(0,1)
 
     Set methods = $ListBuild("RunInferenceWDynamicSQL", "RunInferenceWIRISSQL", "RunInferenceWGLobals")
     Set className = "MockPackage.MockInference"

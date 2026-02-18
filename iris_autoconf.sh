@@ -21,5 +21,9 @@ Do $system.OBJ.Import("/usr/irissys/mgr/MockPackage", "ck")
 SET exists = ##class(%SYSTEM.SQL.Schema).TableExists("MockPackage.NoShowsAppointments")
 IF 'exists {   do ##class(shvarov.csvgenpy.csv).Generate("/dur/data/healthcare_noshows_appointments.csv","NoShowsAppointments","MockPackage")   }
 
+/* Enable Analytics */
+do EnableDeepSee^%SYS.cspServer("/csp/user/") # Enable for USER namespace
+
+
 halt
 EOF
