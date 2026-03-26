@@ -1,16 +1,29 @@
 # IRIS Dockerization and Embedded Python for Data Science
 
+
+
+TL;DR
+
 demo: https://www.youtube.com/watch?v=IcShNKQ4jIk
 
-Before joining InterSystems, I worked in a team of web developers as a data scientist. Most of my day-to-day work involved training and embedding ML models in Python-based backend applications through microservices, mainly built with the Django framework and using Postgres SQL for sourcing the data. During development, testing, and deployment, I realized the importance of repeatability of results, both for the model’s inferences and for the performance inside the application, regardless of the hardware being used to run the code.
+Configure an entire docker instance for Data Science projects with 1 single command:
 
-This naturally went hand in hand with adopting good coding practices, such as modularization to reduce code repeatability and boilerplate, making maintenance easier and speeding up development. For this reason, Docker in particular became an essential tool in our workflow, not only for scalability and ease of deployment, but also to reduce human error and ensure that code behaves the same way everywhere, regardless of the underlying machine.
+```bash
+docker-compose up --build -d
+```
 
-When I joined InterSystems, I was immediately impressed by the robustness of IRIS as a data platform. Its resilience to human error when following guidelines to create services through productions, the multi-model nature of how information can be stored, and, in particular, the lightning-fast access to data through globals opened my eyes to a different way of thinking about performance and data access patterns, especially when compared to a traditional relational-only mindset.
+Test by running:
+```bash
+docker exec -it iris-experimentation iris terminal iris
+do ##class(MockPackage.MockInference).RunAllInferences(0,1)
+```
+The first line opens the IRIS CLI, the second runs the class method in [MockPackage\MockModelManager.cls](MockPackage\MockModelManager.cls), which compares the tame taken (using 3 different table querying alternatives) to fetch data from an IRIS table populated from the csv file in [dur\data\healthcare_noshows_appointments.csv](dur\data\healthcare_noshows_appointments.csv), transform it into a Pandas DataFrame, apply a data processing pipeline on it, and predict a variable of interest (No Shows) with a pre-trained LightGBM model. All this using embedded python inside methods of ObjectScript classes.
 
-I was also lucky to join the company (September 2025) at a time when a rich ecosystem of tools was already in place, significantly flattening the learning curve. The VS Code ObjectScript Extension Pack, Embedded Python, the official IRIS Docker images, and the InterSystems Package Manager (IPM) for easily importing ObjectScript packages (https://github.com/intersystems/ipm) quickly became my everyday toolbelt.
+TODO: Explain retrain the model
 
-After about three months, I felt confident enough working with this stack that I started standardizing my own development environment. In this article, I’d like to share how I set up a fully containerized IRIS instance for Data Science projects using Docker—ready to use Embedded Python out of the box, with all required dependencies installed from both Python’s `pip` and IPM.
+The VS Code ObjectScript Extension Pack, Embedded Python, the official IRIS Docker images, and the InterSystems Package Manager (IPM) for easily importing ObjectScript packages (https://github.com/intersystems/ipm)
+
+Docker—ready to use Embedded Python out of the box, with all required dependencies installed from both Python’s `pip` and IPM.
 
 I’ll also use this setup to share some insights on the incredible speed of using globals to query tables, in a practical scenario where the popular gradient boosting model **LightGBM** is used to train and make inferences on a mock dataset. This allows us to measure inference speed while comparing the different querying approaches available in IRIS.
 
