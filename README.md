@@ -1,31 +1,68 @@
 # IRIS Dockerization and Embedded Python for Data Science
 
+## TL;DR
 
-
-TL;DR
-
-demo: https://www.youtube.com/watch?v=IcShNKQ4jIk
-
-Configure an entire docker instance for Data Science projects with 1 single command:
-
+Configure a full Docker environment for Data Science projects with a single command:
 ```bash
 docker-compose up --build -d
 ```
 
-Test by running:
+This will execute [docker-compose.yml](docker-compose.yml), [Dockerfile](Dockerfile), and [iris_autoconf.sh](iris_autoconf.sh) to create an IRIS instance with everything you need for a data science project:
+
+- IRIS packages via [IPM](https://github.com/intersystems/ipm)
+- Open source [python libraries](https://pypi.org/)
+- Custom Python and ObjectScript packages
+
+In this project, we predict the likelihood of patients showing up to appointments using this [this Kaggle dataset](https://www.kaggle.com/datasets/wajahat1064/healthcare-appointment-dataset) to train a [LightGBM](https://lightgbm.readthedocs.io/en/stable/) tree-based machine learning algorithm.
+
+## Demo
+
+demo: https://www.youtube.com/watch?v=IcShNKQ4jIk
+
+## Getting Started
+
+After creaing the image and running the docker container with the comand above, open the IRIS CLI with:
+
 ```bash
 docker exec -it iris-experimentation iris terminal iris
+```
+
+From there, train your first model by running:
+
+```objectscript
+do ##class(MockPackage.MockModelManager).TrainNoShowsModel("/dur/data/healthcare_noshows_appointments.csv", "/dur/models")
+```
+This will use embedded python to:
+1. Load data in [dur\data\healthcare_noshows_appointments.csv](dur\data\healthcare_noshows_appointments.csv) into a Pandas DataFrame
+2. Train a LightGBM model 
+3. Save the weights to [dur\models](dur\models).
+
+Test inference on data stored in IRIS tables with:
+
+```objectscript
 do ##class(MockPackage.MockInference).RunAllInferences(0,1)
 ```
-The first line opens the IRIS CLI, the second runs the class method in [MockPackage\MockModelManager.cls](MockPackage\MockModelManager.cls), which compares the tame taken (using 3 different table querying alternatives) to fetch data from an IRIS table populated from the csv file in [dur\data\healthcare_noshows_appointments.csv](dur\data\healthcare_noshows_appointments.csv), transform it into a Pandas DataFrame, apply a data processing pipeline on it, and predict a variable of interest (No Shows) with a pre-trained LightGBM model. All this using embedded python inside methods of ObjectScript classes.
 
-TODO: Explain retrain the model
+This executes the **RunAllInferences** method in [MockPackage\MockInference.cls](MockPackage\MockInference.cls), which compares execution time across three different IRIS query strategies, and measure the influence they have on a whole pipeline that:
 
-The VS Code ObjectScript Extension Pack, Embedded Python, the official IRIS Docker images, and the InterSystems Package Manager (IPM) for easily importing ObjectScript packages (https://github.com/intersystems/ipm)
+- Fetches data from IRIS tables populated from the csv file in [dur\data\healthcare_noshows_appointments.csv](dur\data\healthcare_noshows_appointments.csv)
+- Transforms the data into a Pandas DataFrame
+- Applies a preprocessing pipeline
+- Performs predictions (No Shows) using the trained LightGBM model
 
-Docker—ready to use Embedded Python out of the box, with all required dependencies installed from both Python’s `pip` and IPM.
+All of this runs through embedded Python inside ObjectScript methods, with execution time measured using a decorator defined in [python_utils\utils.py](python_utils\utils.py). 
 
-I’ll also use this setup to share some insights on the incredible speed of using globals to query tables, in a practical scenario where the popular gradient boosting model **LightGBM** is used to train and make inferences on a mock dataset. This allows us to measure inference speed while comparing the different querying approaches available in IRIS.
+
+
+## Notes
+
+The main goal of this repo is to compare how different IRIS querying approaches impact performance within a representative Machine Learning pipeline.
+
+- We focus exclusively on end-to-end pipeline execution time
+- We analyze how performance scales with different table sizes
+- Table size is controlled via the following method in [MockPackage\MockDataManager.cls](MockPackage\MockDataManager.cls):
+    - AdjustDataSize
+    - UpdateTableFromCSV
 
 Some important highlights that will be addressed in this article are how to:
 
@@ -35,19 +72,21 @@ Some important highlights that will be addressed in this article are how to:
 
   - Import custom ObjectScript packages into IRIS.
 
-  - Install IPM and, through it, Shavrov’s `csvgenpy` utility  
-    (https://community.intersystems.com/post/csvgenpy-import-any-csv-intersystems-iris-using-embedded-python),  
+  - Install IPM and, through it, Shavrov’s [csvgenpy](https://community.intersystems.com/post/csvgenpy-import-any-csv-intersystems-iris-using-embedded-python) utility,  
     used to create and populate new tables from a single CSV file.
 
   - Check whether an IRIS table already exists and, if it doesn’t, populate it using `csvgenpy` with a CSV file mounted into the container via Docker volumes.
 
-  All of this by only running:
 
-  ```bash
-  docker-compose up --build
-  ```
+## Related Work (Continuous Training Pipeline)
 
-Finally, the repository accompanying this article uses this setup to create a complete IRIS environment with all the tools and data needed to compare different ways of querying the same IRIS table and converting the results into a Pandas DataFrame (NumPy-based), which is typically what gets passed to Python-based machine learning models.
+To see a formal implementation of a Continuous Training (CT) Pipeline, see [this repo](https://github.com/JorgeIvanJH/Continuous-Training-in-IRIS).
+
+
+
+## Querying Comparison
+
+As mentioned above, the repository accompanying this article uses this setup to create a complete IRIS environment with all the tools and data needed to compare different ways of querying the same IRIS table and converting the results into a Pandas DataFrame (NumPy-based), which is typically what gets passed to Python-based machine learning models.
 
 The comparison includes:
 
@@ -67,7 +106,7 @@ At the same time, consistency across querying methods is validated by asserting 
 ```
 .
 ├── docker-compose.yml             # Docker orchestration configuration
-├── dockerfile                     # Multi-stage build with IRIS + Python
+├── Dockerfile                     # Multi-stage build with IRIS + Python
 ├── iris_autoconf.sh               # Auto-configuration script for IRIS terminal commands
 ├── requirements.txt               # Python libraries
 ├── MockPackage/                   # Custom package
@@ -102,7 +141,7 @@ services:
   iris:
     build: # How is the image built
       context: . # Path to the directory containing the Dockerfile
-      dockerfile: Dockerfile # Name of the Dockerfile
+      Dockerfile: Dockerfile # Name of the Dockerfile
     container_name: iris-experimentation # Name of the container
     ports:
       - "1972:1972"    # SuperServer port
@@ -137,7 +176,7 @@ Docker Compose specifies how the IRIS container is built, which ports are expose
 
   **NOTE:** The commands in this script are executed every time the container starts. This means that if the container goes down for any reason and restarts (for example, due to `restart: always`), all the commands in this script will be executed again. If this behavior is not taken into account when writing the script, it can lead to unintended side effects such as reinstalling packages or resetting tables.
 
-### dockerfile
+### Dockerfile
 ```
 # Stage 1: Build stage for installing dependencies
 FROM python:3.12-slim AS builder
